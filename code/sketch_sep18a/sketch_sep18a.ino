@@ -1,5 +1,7 @@
 #include <Servo.h>
 #define ROTATION_THRESHOLD 5
+
+int previousStreerAngle = 90;
 // consts
 const int minimumDistance = 20;
 int maxSteerDegree = 30;
@@ -43,8 +45,11 @@ void steering(String direction, float currentDistance) {
   if (direction == "left") {
     // mapping the steering
     degreeToSteer = 90 + changeInRotation;
-  } else {
+  } else if(direction == "right") {
     degreeToSteer = 90 - changeInRotation;
+  }else{
+    degreeToSteer = 90;
+    Servo.write(degreeToSteer);
   }
 
   Serial.println(direction);
@@ -53,10 +58,9 @@ void steering(String direction, float currentDistance) {
   Serial.println(degreeToSteer);
 
   // need to think of delay
-  delay(100); // \_(::)_/
 
   // Will ignore the rotation if the angle of rotation in below the threshold
-  if(changeInRotation >= ROTATION_THRESHOLD){
+  if(abs(degreeToSteer - previousStreerAngle) > ROTATION_THRESHOLD) {
     Servo.write(degreeToSteer);
   }
 }
@@ -113,5 +117,7 @@ void loop()
   else if (rightDistance < minimumDistance)
   {
     steering("left", rightDistance);
+  }else{
+    steering("straight", 22);
   }
 }
