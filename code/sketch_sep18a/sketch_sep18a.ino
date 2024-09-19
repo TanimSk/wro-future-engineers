@@ -8,7 +8,6 @@ int maxSteerDegree = 30;
 const int servoPin = 10;
 Servo Servo;
 
-
 // left sonar
 const int pingPinLeft = 12;
 const int echoPinLeft = 11;
@@ -20,13 +19,15 @@ const int pingPinRight = 5;
 float rightDistance = 0;
 
 // motor driver
-
+const int enable = 9;
+const int motorIn1 = 8;
+const int motorIn2 = 7;
 
 unsigned long now_time = 0;
 int degreeToSteer = 0;
 
-
-float get_distance_cm(String sonar) {
+float get_distance_cm(String sonar)
+{
   digitalWrite(sonar == "left" ? pingPinLeft : pingPinRight, LOW);
   delayMicroseconds(2);
   digitalWrite(sonar == "left" ? pingPinLeft : pingPinRight, HIGH);
@@ -36,12 +37,15 @@ float get_distance_cm(String sonar) {
   return duration * 0.034 / 2;
 }
 
-
-void steering(String direction, float threshold) {
-  if (direction == "left") {
+void steering(String direction, float threshold)
+{
+  if (direction == "left")
+  {
     // mapping the steering
     degreeToSteer = 90 + ((maxSteerDegree / minimumDistance) * (minimumDistance - threshold));
-  } else {
+  }
+  else
+  {
     degreeToSteer = 90 - ((maxSteerDegree / minimumDistance) * (minimumDistance - threshold));
   }
 
@@ -50,13 +54,26 @@ void steering(String direction, float threshold) {
   Serial.print(" ,");
   Serial.println(degreeToSteer);
 
-
   // need to think of delay
   Servo.write(degreeToSteer);
 }
 
+void go_forward(int speed)
+{
+  digitalWrite(motorIn1, HIGH);
+  digitalWrite(motorIn2, LOW);
+  analogWrite(enable, speed);
+}
 
-void setup() {
+void stop()
+{
+  digitalWrite(motorIn1, LOW);
+  digitalWrite(motorIn2, LOW);
+  analogWrite(enable, 0);
+}
+
+void setup()
+{
 
   // servo configuration
   Servo.attach(servoPin);
@@ -71,17 +88,27 @@ void setup() {
   pinMode(pingPinRight, OUTPUT);
   pinMode(echoPinRight, INPUT);
 
+  // motor driver
+  pinMode(enable, OUTPUT);
+  pinMode(motorIn1, OUTPUT);
+  pinMode(motorIn2, OUTPUT);
+
+  go_forward(255);
+
   Serial.begin(9600);
 }
 
-
-void loop() {
+void loop()
+{
   leftDistance = get_distance_cm("left");
   rightDistance = get_distance_cm("right");
 
-  if (leftDistance < minimumDistance) {
+  if (leftDistance < minimumDistance)
+  {
     steering("right", leftDistance);
-  } else if (rightDistance < minimumDistance) {
+  }
+  else if (rightDistance < minimumDistance)
+  {
     steering("left", rightDistance);
   }
 }
