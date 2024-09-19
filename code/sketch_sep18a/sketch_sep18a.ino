@@ -37,16 +37,16 @@ float get_distance_cm(String sonar) {
 }
 
 
-void steering(String direction, float threshold) {
+void steering(String direction, float currentDistance) {
   if (direction == "left") {
     // mapping the steering
-    degreeToSteer = 90 + ((maxSteerDegree / minimumDistance) * (minimumDistance - threshold));
+    degreeToSteer = 90 + map(currentDistance,0,minimumDistance,maxSteerDegree,0);
   } else {
-    degreeToSteer = 90 - ((maxSteerDegree / minimumDistance) * (minimumDistance - threshold));
+    degreeToSteer = 90 - map(currentDistance,0,minimumDistance,maxSteerDegree,0);
   }
 
   Serial.println(direction);
-  Serial.println(threshold);
+  Serial.println(currentDistance);
   Serial.print(" ,");
   Serial.println(degreeToSteer);
 
