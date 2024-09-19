@@ -1,5 +1,5 @@
 #include <Servo.h>
-
+#define ROTATION_THRESHOLD 5
 // consts
 const int minimumDistance = 20;
 int maxSteerDegree = 30;
@@ -39,11 +39,12 @@ float get_distance_cm(String sonar)
 
 
 void steering(String direction, float currentDistance) {
+  int changeInRotation = map(currentDistance,0,minimumDistance,maxSteerDegree,0);
   if (direction == "left") {
     // mapping the steering
-    degreeToSteer = 90 + map(currentDistance,0,minimumDistance,maxSteerDegree,0);
+    degreeToSteer = 90 + changeInRotation;
   } else {
-    degreeToSteer = 90 - map(currentDistance,0,minimumDistance,maxSteerDegree,0);
+    degreeToSteer = 90 - changeInRotation;
   }
 
   Serial.println(direction);
@@ -52,7 +53,12 @@ void steering(String direction, float currentDistance) {
   Serial.println(degreeToSteer);
 
   // need to think of delay
-  Servo.write(degreeToSteer);
+  delay(100); // \_(::)_/
+
+  // Will ignore the rotation if the angle of rotation in below the threshold
+  if(changeInRotation >= ROTATION_THRESHOLD){
+    Servo.write(degreeToSteer);
+  }
 }
 
 void go_forward(int speed)
