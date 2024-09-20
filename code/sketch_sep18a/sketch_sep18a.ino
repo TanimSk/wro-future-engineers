@@ -25,15 +25,14 @@ const int motorIn2 = 7;
 
 // Sonar pins
 const int sonarPins[MAX_SONARS][2] = {
-    {A2, 2},  // left
-    {A4, 3},  // front-left
-    {A3, A5}, // front-center
-    {A1, 4},  // front-right
-    {A0, 6}   // right
+  { A2, 2 },   // left
+  { A4, 3 },   // front-left
+  { A3, A5 },  // front-center
+  { A1, 4 },   // front-right
+  { A0, 6 }    // right
 };
 
-enum Sonar
-{
+enum Sonar {
   LEFT,
   FRONT_LEFT,
   FRONT_CENTER,
@@ -42,8 +41,7 @@ enum Sonar
 };
 
 // Function to get sonar distance in cm
-float getDistanceCM(Sonar sonar)
-{
+float getDistanceCM(Sonar sonar) {
   int triggerPin = sonarPins[sonar][0];
   int echoPin = sonarPins[sonar][1];
 
@@ -58,29 +56,22 @@ float getDistanceCM(Sonar sonar)
 }
 
 // Function to steer the vehicle
-void steering(String direction, float currentDistance)
-{
+void steering(String direction, float currentDistance) {
   int changeInRotation = 0;
 
-  if (direction == "LEFT")
-  {
+  if (direction == "LEFT") {
     changeInRotation = map(currentDistance, 0, minimumDistance, maxSteerDegreeLeft, 0);
     degreeToSteer = 90 + changeInRotation;
     Serial.println("Steering left" + String(degreeToSteer));
-  }
-  else if (direction == "RIGHT")
-  {
+  } else if (direction == "RIGHT") {
     changeInRotation = map(currentDistance, 0, minimumDistance, maxSteerDegreeRight, 0);
     degreeToSteer = 90 - changeInRotation;
     Serial.println("Steering right" + String(degreeToSteer));
-  }
-  else
-  {
+  } else {
     degreeToSteer = 90;
   }
 
-  if (abs(degreeToSteer - previousSteerAngle) > ROTATION_THRESHOLD)
-  {
+  if (abs(degreeToSteer - previousSteerAngle) > ROTATION_THRESHOLD) {
     Serial.println("Steering to " + String(degreeToSteer));
     servo.write(degreeToSteer);
     previousSteerAngle = degreeToSteer;
@@ -88,37 +79,32 @@ void steering(String direction, float currentDistance)
 }
 
 // Motor control
-void goForward(int speed)
-{
+void goForward(int speed) {
   digitalWrite(motorIn1, HIGH);
   digitalWrite(motorIn2, LOW);
   analogWrite(enable, speed);
 }
 
-void goBackward(int speed)
-{
+void goBackward(int speed) {
   digitalWrite(motorIn1, LOW);
   digitalWrite(motorIn2, HIGH);
   analogWrite(enable, speed);
 }
 
-void stopMotor()
-{
+void stopMotor() {
   digitalWrite(motorIn1, LOW);
   digitalWrite(motorIn2, LOW);
   analogWrite(enable, 0);
 }
 
-void setup()
-{
+void setup() {
   // Servo configuration
   servo.attach(servoPin);
   servo.write(90);
   delay(1000);
 
   // Sonar pins configuration
-  for (int i = 0; i < MAX_SONARS; ++i)
-  {
+  for (int i = 0; i < MAX_SONARS; ++i) {
     pinMode(sonarPins[i][1], INPUT);
     pinMode(sonarPins[i][0], OUTPUT);
   }
@@ -132,8 +118,7 @@ void setup()
   Serial.begin(9600);
 }
 
-void loop()
-{
+void loop() {
   goForward(255);
   delay(80);
 
@@ -144,71 +129,37 @@ void loop()
   int leftDistance = getDistanceCM(LEFT);
   int rightDistance = getDistanceCM(RIGHT);
 
-  // Print distances for debugging
-  Serial.println("-------------------------------------");
-  Serial.print("Front Center: ");
-  Serial.println(frontCenterDistance);
-  Serial.print("Front Left: ");
-  Serial.println(frontLeftDistance);
-  Serial.print("Front Right: ");
-  Serial.println(frontRightDistance);
-  Serial.print("Left: ");
-  Serial.println(leftDistance);
-  Serial.print("Right: ");
-  Serial.println(rightDistance);
-
-  // convert leftDistance to string
-  //
-
-  String distances = String(leftDistance) + ", " + String(rightDistance) + ", " + String(frontCenterDistance) + ", " + String(frontLeftDistance) + ", " + String(frontRightDistance) + "\n";
+  String distances = String(leftDistance) + ", " + String(frontLeftDistance) + ", " + String(frontCenterDistance) + ", " + String(frontRightDistance) String(rightDistance) + "\n";
   Serial.print(distances);
 
-  // String distances = String(leftDistance) + ", " + String(frontCenterDistance) + ", " + String(rightDistance) + "\n";
-  // Serial.print(distances);
-
   // Check for obstacles and steer accordingly
-  if ((frontCenterDistance < minimumFrontDistance) || (frontLeftDistance < minimumFrontDistance) || (frontRightDistance < minimumFrontDistance))
-  {
-    if ((leftDistance < minimumDistance) && (rightDistance < minimumDistance))
-    {
+  if (frontCenterDistance < minimumFrontDistance) {
+    if ((leftDistance < minimumDistance) && (rightDistance < minimumDistance)) {
       Serial.println("Going back");
       goBackward(255);
       delay(2000);
-    }
-    else if (leftDistance < 30)
-    {
+    } else if (leftDistance < 30 || frontLeftDistance < 30) {
       // Left e obstacle
-      steering("RIGHT", 0); // Steer hard right if left side is blocked
+      steering("RIGHT", 0);  // Steer hard right if left side is blocked
       delay(1800);
-    }
-    else if (rightDistance < 30)
-    {
+    } else if (rightDistance < 30 || frontRightDistance < 30) {
       // Right e obstacle
-      steering("LEFT", 0); // Steer hard left otherwise
+      steering("LEFT", 0);  // Steer hard left otherwise
       delay(1800);
       // reset angle
       previousSteerAngle = 90;
-    }
-    else
-    {
+    } else {
       steering("LEFT", 0);
       delay(1800);
       // reset angle
       previousSteerAngle = 90;
     }
-  }
-  else
-  {
-    if (leftDistance < minimumDistance)
-    {
+  } else {
+    if (leftDistance < minimumDistance || frontLeftDistance < minimumDistance) {
       steering("RIGHT", leftDistance);
-    }
-    else if (rightDistance < minimumDistance)
-    {
+    } else if (rightDistance < minimumDistance || frontRightDistance < minimumDistance) {
       steering("LEFT", rightDistance);
-    }
-    else
-    {
+    } else {
       servo.write(90);
       // reset the angle
       previousSteerAngle = 90;
