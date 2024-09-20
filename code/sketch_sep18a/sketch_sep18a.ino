@@ -1,17 +1,18 @@
 #include <Servo.h>
 
-#define ROTATION_THRESHOLD 5
+#define ROTATION_THRESHOLD 3
 #define MAX_SONARS 5
 
 int previousSteerAngle = 90;
 int degreeToSteer = 0;
-unsigned long start_time = 0;
 
 // Constants
 const int minimumDistance = 20;
 const int minimumFrontDistance = 30;
-const int maxSteerDegree = 30;
-const int hardCornerDegree = 30;
+
+const int maxSteerDegreeRight = 22;
+const int maxSteerDegreeLeft = 26;
+// const int hardCornerDegree = 30;
 
 // Servo
 const int servoPin = 10;
@@ -57,25 +58,30 @@ float getDistanceCM(Sonar sonar)
 }
 
 // Function to steer the vehicle
-void steering(Sonar direction, float currentDistance)
+void steering(String direction, float currentDistance)
 {
-  int changeInRotation = map(currentDistance, 0, minimumDistance, maxSteerDegree, 0);
+  int changeInRotation = 0;
 
-  switch (direction)
+  if (direction == "LEFT")
   {
-  case LEFT:
+    changeInRotation = map(currentDistance, 0, minimumDistance, maxSteerDegreeLeft, 0);
     degreeToSteer = 90 + changeInRotation;
-    break;
-  case RIGHT:
+    Serial.println("Steering left" + String(degreeToSteer));
+  }
+  else if (direction == "RIGHT")
+  {
+    changeInRotation = map(currentDistance, 0, minimumDistance, maxSteerDegreeRight, 0);
     degreeToSteer = 90 - changeInRotation;
-    break;
-  default:
+    Serial.println("Steering right" + String(degreeToSteer));
+  }
+  else
+  {
     degreeToSteer = 90;
-    break;
   }
 
   if (abs(degreeToSteer - previousSteerAngle) > ROTATION_THRESHOLD)
   {
+    Serial.println("Steering to " + String(degreeToSteer));
     servo.write(degreeToSteer);
     previousSteerAngle = degreeToSteer;
   }
@@ -86,6 +92,13 @@ void goForward(int speed)
 {
   digitalWrite(motorIn1, HIGH);
   digitalWrite(motorIn2, LOW);
+  analogWrite(enable, speed);
+}
+
+void goBackward(int speed)
+{
+  digitalWrite(motorIn1, LOW);
+  digitalWrite(motorIn2, HIGH);
   analogWrite(enable, speed);
 }
 
@@ -121,7 +134,8 @@ void setup()
 
 void loop()
 {
-  delay(100);
+  goForward(255);
+  delay(80);
 
   // Read sonar distances
   int frontCenterDistance = getDistanceCM(FRONT_CENTER);
@@ -143,27 +157,61 @@ void loop()
   Serial.print("Right: ");
   Serial.println(rightDistance);
 
+  // convert leftDistance to string
+  //
+
+  String distances = String(leftDistance) + ", " + String(rightDistance) + ", " + String(frontCenterDistance) + ", " + String(frontLeftDistance) + ", " + String(frontRightDistance) + "\n";
+  Serial.print(distances);
+
+  // String distances = String(leftDistance) + ", " + String(frontCenterDistance) + ", " + String(rightDistance) + "\n";
+  // Serial.print(distances);
+
   // Check for obstacles and steer accordingly
-  if (frontCenterDistance < minimumFrontDistance || frontLeftDistance < minimumFrontDistance || frontRightDistance < minimumFrontDistance)
+  if ((frontCenterDistance < minimumFrontDistance) || (frontLeftDistance < minimumFrontDistance) || (frontRightDistance < minimumFrontDistance))
   {
-    if (leftDistance < minimumDistance)
+    if ((leftDistance < minimumDistance) && (rightDistance < minimumDistance))
     {
-      steering(RIGHT, leftDistance); // Steer hard right if left side is blocked
+      Serial.println("Going back");
+      goBackward(255);
+      delay(2000);
+    }
+    else if (leftDistance < 30)
+    {
+      // Left e obstacle
+      steering("RIGHT", 0); // Steer hard right if left side is blocked
+      delay(1800);
+    }
+    else if (rightDistance < 30)
+    {
+      // Right e obstacle
+      steering("LEFT", 0); // Steer hard left otherwise
+      delay(1800);
+      // reset angle
+      previousSteerAngle = 90;
     }
     else
     {
-      steering(LEFT, rightDistance); // Steer hard left otherwise
+      steering("LEFT", 0);
+      delay(1800);
+      // reset angle
+      previousSteerAngle = 90;
     }
   }
   else
   {
     if (leftDistance < minimumDistance)
     {
-      steering(RIGHT, leftDistance);
+      steering("RIGHT", leftDistance);
+    }
+    else if (rightDistance < minimumDistance)
+    {
+      steering("LEFT", rightDistance);
     }
     else
     {
-      steering(LEFT, rightDistance);
+      servo.write(90);
+      // reset the angle
+      previousSteerAngle = 90;
     }
   }
 }
