@@ -1,198 +1,169 @@
 #include <Servo.h>
 
 #define ROTATION_THRESHOLD 5
+#define MAX_SONARS 5
 
-int previousStreerAngle = 90;
+int previousSteerAngle = 90;
+int degreeToSteer = 0;
+unsigned long start_time = 0;
 
-// consts
+// Constants
 const int minimumDistance = 20;
 const int minimumFrontDistance = 30;
-int maxSteerDegree = 30;
-int hardCornerDegree = 30;
+const int maxSteerDegree = 30;
+const int hardCornerDegree = 30;
 
 // Servo
 const int servoPin = 10;
-Servo Servo;
+Servo servo;
 
-// sonar pins
-#define LEFT_ECHO_PIN 2
-#define LEFT_TRIGGER_PIN A2
-
-#define FRONTLEFT_ECHO_PIN 3
-#define FRONTLEFT_TRIGGER_PIN A4
-
-#define FRONCENTER_ECHO_PIN A5
-#define FRONCENTER_TRIGGER_PIN A3
-
-#define FRONTRIGHT_ECHO_PIN 4
-#define FRONTRIGHT_TRIGGER_PIN A1
-
-#define RIGHT_ECHO_PIN 6
-#define RIGHT_TRIGGER_PIN A0
-
-// left sonar
-float leftDistance = 0;
-
-// right sonar
-const int echoPinRight = 4;
-float rightDistance = 0;
-
-// motor driver
+// Motor driver
 const int enable = 9;
 const int motorIn1 = 8;
 const int motorIn2 = 7;
 
-unsigned long start_time = 0;
-int degreeToSteer = 0;
+// Sonar pins
+const int sonarPins[MAX_SONARS][2] = {
+    {A2, 2},  // left
+    {A4, 3},  // front-left
+    {A3, A5}, // front-center
+    {A1, 4},  // front-right
+    {A0, 6}   // right
+};
 
-// Sonar distances
-int front_center_distance = 300;
-int front_left_distance = 300;
-int front_right_distance = 300;
-int left_distance = 300;
-int right_distance = 300;
+enum Sonar
+{
+  LEFT,
+  FRONT_LEFT,
+  FRONT_CENTER,
+  FRONT_RIGHT,
+  RIGHT
+};
 
-int *get_appropriate_sonar_pin(String sonar) {
-  int *array = new int[2];
+// Function to get sonar distance in cm
+float getDistanceCM(Sonar sonar)
+{
+  int triggerPin = sonarPins[sonar][0];
+  int echoPin = sonarPins[sonar][1];
 
-  if (sonar == "left") {
-    array[0] = LEFT_TRIGGER_PIN;
-    array[1] = LEFT_ECHO_PIN;
-  } else if (sonar == "right") {
-    array[0] = RIGHT_TRIGGER_PIN;
-    array[1] = RIGHT_ECHO_PIN;
-  } else if (sonar == "frontleft") {
-    array[0] = FRONTLEFT_TRIGGER_PIN;
-    array[1] = FRONTLEFT_ECHO_PIN;
-  } else if (sonar == "frontcenter") {
-    array[0] = FRONCENTER_TRIGGER_PIN;
-    array[1] = FRONCENTER_ECHO_PIN;
-  } else if (sonar == "frontright") {
-    array[0] = FRONTRIGHT_TRIGGER_PIN;
-    array[1] = FRONTRIGHT_ECHO_PIN;
-  } else {
-    array[0] = -1;
-    array[1] = -1;
-  }
-
-  return array;
-}
-
-float get_distance_cm(String sonar) {
-  int *sonar_pins = get_appropriate_sonar_pin(sonar);
-  digitalWrite(sonar_pins[0], LOW);
+  digitalWrite(triggerPin, LOW);
   delayMicroseconds(2);
-  digitalWrite(sonar_pins[0], HIGH);
+  digitalWrite(triggerPin, HIGH);
   delayMicroseconds(10);
-  digitalWrite(sonar_pins[0], LOW);
-  float duration = pulseIn(sonar_pins[1], HIGH);
+  digitalWrite(triggerPin, LOW);
 
-  Serial.println(sonar + " ");
-  Serial.println(sonar_pins[0]);
-  Serial.println(sonar_pins[1]);
-  Serial.println();
+  float duration = pulseIn(echoPin, HIGH);
   return duration * 0.034 / 2;
 }
 
-void steering(String direction, float currentDistance) {
+// Function to steer the vehicle
+void steering(Sonar direction, float currentDistance)
+{
   int changeInRotation = map(currentDistance, 0, minimumDistance, maxSteerDegree, 0);
-  if (direction == "left") {
-    // mapping the steering
+
+  switch (direction)
+  {
+  case LEFT:
     degreeToSteer = 90 + changeInRotation;
-  } else if (direction == "right") {
+    break;
+  case RIGHT:
     degreeToSteer = 90 - changeInRotation;
-  } else if (direction == "hardleft") {
-    degreeToSteer = 90 + hardCornerDegree;
-  } else if (direction == "hardright") {
-    degreeToSteer = 90 - hardCornerDegree;
-  } else {
+    break;
+  default:
     degreeToSteer = 90;
-    // Servo.write(degreeToSteer);
+    break;
   }
 
-  // Will ignore the rotation if the angle of rotation in below the threshold
-  if (abs(degreeToSteer - previousStreerAngle) > ROTATION_THRESHOLD) {
-    // Servo.write(degreeToSteer);
+  if (abs(degreeToSteer - previousSteerAngle) > ROTATION_THRESHOLD)
+  {
+    servo.write(degreeToSteer);
+    previousSteerAngle = degreeToSteer;
   }
 }
 
-void go_forward(int speed) {
+// Motor control
+void goForward(int speed)
+{
   digitalWrite(motorIn1, HIGH);
   digitalWrite(motorIn2, LOW);
   analogWrite(enable, speed);
 }
 
-void stop() {
+void stopMotor()
+{
   digitalWrite(motorIn1, LOW);
   digitalWrite(motorIn2, LOW);
   analogWrite(enable, 0);
 }
 
-void setup() {
-
-  // servo configuration
-  Servo.attach(servoPin);
-  Servo.write(90);
+void setup()
+{
+  // Servo configuration
+  servo.attach(servoPin);
+  servo.write(90);
   delay(1000);
 
-  // Sonars Configuration
-  pinMode(LEFT_ECHO_PIN, INPUT);
-  pinMode(LEFT_TRIGGER_PIN, OUTPUT);
-  pinMode(RIGHT_ECHO_PIN, INPUT);
-  pinMode(RIGHT_TRIGGER_PIN, OUTPUT);
-  pinMode(FRONTLEFT_ECHO_PIN, INPUT);
-  pinMode(FRONTLEFT_TRIGGER_PIN, OUTPUT);
-  pinMode(FRONCENTER_ECHO_PIN, INPUT);
-  pinMode(FRONCENTER_TRIGGER_PIN, OUTPUT);
-  pinMode(FRONTRIGHT_ECHO_PIN, INPUT);
-  pinMode(FRONTRIGHT_TRIGGER_PIN, OUTPUT);
+  // Sonar pins configuration
+  for (int i = 0; i < MAX_SONARS; ++i)
+  {
+    pinMode(sonarPins[i][1], INPUT);
+    pinMode(sonarPins[i][0], OUTPUT);
+  }
 
-  // motor driver
+  // Motor driver configuration
   pinMode(enable, OUTPUT);
   pinMode(motorIn1, OUTPUT);
   pinMode(motorIn2, OUTPUT);
 
-  go_forward(255);
-
+  goForward(255);
   Serial.begin(9600);
 }
 
-void loop() {
+void loop()
+{
   delay(100);
 
-  int front_center_distance = get_distance_cm("frontcenter");
-  int front_left_distance = get_distance_cm("frontleft");
-  int front_right_distance = get_distance_cm("frontright");
-  int left_distance = get_distance_cm("left");
-  int right_distance = get_distance_cm("right");
+  // Read sonar distances
+  int frontCenterDistance = getDistanceCM(FRONT_CENTER);
+  int frontLeftDistance = getDistanceCM(FRONT_LEFT);
+  int frontRightDistance = getDistanceCM(FRONT_RIGHT);
+  int leftDistance = getDistanceCM(LEFT);
+  int rightDistance = getDistanceCM(RIGHT);
 
+  // Print distances for debugging
   Serial.println("-------------------------------------");
   Serial.print("Front Center: ");
-  Serial.println(front_center_distance);
+  Serial.println(frontCenterDistance);
   Serial.print("Front Left: ");
-  Serial.println(front_left_distance);
+  Serial.println(frontLeftDistance);
   Serial.print("Front Right: ");
-  Serial.println(front_right_distance);
+  Serial.println(frontRightDistance);
   Serial.print("Left: ");
-  Serial.println(left_distance);
+  Serial.println(leftDistance);
   Serial.print("Right: ");
-  Serial.println(right_distance);
+  Serial.println(rightDistance);
 
-  if (front_center_distance < minimumFrontDistance || front_left_distance < minimumFrontDistance || front_right_distance < minimumFrontDistance) {
-    // Got obstacle in front
-    // Checking the left side
-
-    if (left_distance < minimumDistance) {
-      steering("hardright", left_distance);
-    } else {
-
-      steering("hardleft", right_distance);
+  // Check for obstacles and steer accordingly
+  if (frontCenterDistance < minimumFrontDistance || frontLeftDistance < minimumFrontDistance || frontRightDistance < minimumFrontDistance)
+  {
+    if (leftDistance < minimumDistance)
+    {
+      steering(RIGHT, leftDistance); // Steer hard right if left side is blocked
     }
-  } else {
-    if (left_distance < minimumDistance) {
-      steering("right", left_distance);
-    } else {
-      steering("left", right_distance);
+    else
+    {
+      steering(LEFT, rightDistance); // Steer hard left otherwise
+    }
+  }
+  else
+  {
+    if (leftDistance < minimumDistance)
+    {
+      steering(RIGHT, leftDistance);
+    }
+    else
+    {
+      steering(LEFT, rightDistance);
     }
   }
 }
